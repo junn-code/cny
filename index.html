@@ -1,0 +1,854 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f5f6f8">
+<title>新年找找看 · Family Heritage</title>
+
+<!-- Traditional Chinese calendar / BaZi calculation -->
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.js"></script>
+
+<style>
+:root{
+  --bg:#f5f6f8;
+  --surface:rgba(255,255,255,.72);
+  --solid:#fff;
+  --text:#202631;
+  --muted:#89919e;
+  --line:rgba(120,130,145,.15);
+  --accent:#7188a6;
+  --glass:rgba(255,255,255,.68);
+  --shadow:0 15px 45px rgba(30,45,65,.06);
+  --danger:#c65f65;
+}
+[data-theme="dark"]{
+  --bg:#111318;
+  --surface:rgba(37,41,50,.78);
+  --solid:#242832;
+  --text:#f2f3f6;
+  --muted:#9da5b3;
+  --line:rgba(255,255,255,.09);
+  --accent:#a0b5d3;
+  --glass:rgba(35,40,50,.82);
+  --shadow:0 15px 45px rgba(0,0,0,.2);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",
+  "Segoe UI","Microsoft YaHei",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  transition:.3s;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid var(--accent);outline-offset:3px
+}
+.ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.orb{position:absolute;width:420px;height:420px;border-radius:50%;filter:blur(100px);opacity:.16}
+.orb.one{background:#a9bfdc;top:-180px;left:-120px}
+.orb.two{background:#dfc9b4;bottom:-200px;right:-100px}
+
+.nav-wrap{
+  position:sticky;top:0;z-index:50;padding:18px 5%;
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+}
+.nav{
+  max-width:1440px;margin:auto;display:grid;
+  grid-template-columns:1fr auto 1fr;align-items:center;gap:18px
+}
+.brand{font-size:21px;font-weight:750;letter-spacing:-.8px;cursor:pointer}
+.brand small{display:block;font-size:9px;letter-spacing:2.3px;color:var(--muted);font-weight:500;margin-top:3px}
+.nav-pill{
+  display:flex;align-items:center;gap:3px;padding:4px 16px;
+  background:var(--glass);border:1px solid var(--line);
+  border-radius:100px;box-shadow:var(--shadow);
+  backdrop-filter:blur(24px);white-space:nowrap
+}
+.nav-link{
+  border:0;background:transparent;color:var(--muted);
+  padding:9px 15px;border-radius:100px;font-size:13px;transition:.2s
+}
+.nav-link.active{color:var(--text);background:var(--solid);box-shadow:0 2px 8px #0000000b;font-weight:650}
+.nav-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.icon-btn,.language-btn{border:0;background:transparent;color:var(--text);padding:8px}
+.language-btn{font-size:12px;font-weight:650}
+.container{width:min(1120px,90%);margin:auto}
+.page{display:none;padding:48px 0 100px;animation:fade .3s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hero{padding:70px 0 55px;max-width:760px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:2.4px;color:var(--accent);margin-bottom:20px}
+h1{font-size:clamp(38px,6vw,66px);line-height:1.15;letter-spacing:-2px;margin:0 0 20px}
+h2{font-size:30px;letter-spacing:-1px;margin:0 0 12px}
+h3{font-size:18px;margin:0 0 10px}
+.subtitle{font-size:14px;color:var(--muted);line-height:1.9;max-width:650px}
+.section-head{margin-bottom:30px}
+.section-head p{color:var(--muted);line-height:1.8}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:27px;padding:30px;box-shadow:var(--shadow);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)
+}
+.feature-card{min-height:205px;cursor:pointer;transition:.25s}
+.feature-card:hover{transform:translateY(-5px);border-color:var(--accent)}
+.feature-icon{font-size:25px;margin-bottom:28px}
+.feature-card h3{font-size:19px}
+.feature-card p{font-size:13px;color:var(--muted);line-height:1.7}
+.arrow{float:right;color:var(--muted)}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.field{display:flex;flex-direction:column;gap:10px;min-width:0}
+.field label{font-size:12px;font-weight:650}
+.field input,.field select,.field textarea{
+  width:100%;min-height:52px;padding:0 16px;border-radius:15px;
+  border:1px solid var(--line);background:var(--solid);color:var(--text);
+  font-size:14px;transition:.2s
+}
+.field textarea{padding:14px 16px;min-height:100px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--accent);box-shadow:0 0 0 4px #7188a61c
+}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted);opacity:.7}
+.full{grid-column:1/-1}
+.primary-btn,.secondary-btn,.danger-btn{
+  border-radius:14px;padding:13px 21px;font-size:12px;
+  transition:.2s
+}
+.primary-btn{border:0;background:var(--text);color:var(--bg);font-weight:650}
+.secondary-btn{border:1px solid var(--line);background:var(--surface);color:var(--text)}
+.danger-btn{border:1px solid #c65f6540;background:transparent;color:var(--danger)}
+.primary-btn:hover,.secondary-btn:hover{transform:translateY(-2px);opacity:.86}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:23px}
+.form-header{margin-bottom:25px}
+.form-header p,.form-hint{font-size:12px;color:var(--muted);line-height:1.7}
+.form-section{padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.result{display:none;margin-top:22px}
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}
+.pillar{background:var(--solid);border:1px solid var(--line);padding:20px 10px;border-radius:18px;text-align:center}
+.pillar small{display:block;color:var(--muted);font-size:11px;margin-bottom:12px}
+.pillar strong{display:block;font-size:27px;line-height:1.7}
+.pillar .sub{font-size:12px;color:var(--muted)}
+.elements{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.element{background:var(--solid);border:1px solid var(--line);border-radius:15px;padding:15px 5px;text-align:center}
+.element strong{display:block;font-size:22px;margin:8px}
+.kin-path{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.path-chip{background:var(--solid);border:1px solid var(--line);padding:9px 13px;border-radius:100px;font-size:12px}
+.answer{font-size:34px;font-weight:750;letter-spacing:-1px;margin:16px 0}
+.category{margin-top:24px}
+.category h3{font-size:14px;margin-bottom:13px}
+.relation-list{display:flex;flex-wrap:wrap;gap:8px}
+.relation-btn{
+  border:1px solid var(--line);background:var(--solid);color:var(--text);
+  padding:10px 14px;border-radius:100px;font-size:12px
+}
+.relation-btn:hover,.relation-btn.selected{border-color:var(--accent);background:var(--text);color:var(--bg)}
+.reference-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:13px}
+.reference-row span{color:var(--muted)}
+.tree-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.tree-board{overflow:auto;min-height:300px;padding:25px;background:var(--surface);border:1px solid var(--line);border-radius:24px}
+.tree-generations{display:flex;gap:45px;align-items:flex-start;min-width:max-content}
+.generation{min-width:175px;display:flex;flex-direction:column;gap:13px;align-items:center}
+.generation-title{font-size:11px;color:var(--muted);margin-bottom:8px}
+.person{width:170px;padding:15px;background:var(--solid);border:1px solid var(--line);border-radius:17px;text-align:center}
+.avatar{width:37px;height:37px;margin:0 auto 9px;border-radius:50%;display:grid;place-items:center;background:var(--bg)}
+.person strong{display:block;font-size:13px}
+.person small{display:block;color:var(--muted);margin-top:5px;font-size:10px}
+.person button{margin-top:9px;border:0;background:transparent;color:var(--accent);font-size:11px}
+.member-form{margin-top:22px;display:none}
+footer{padding:30px 5%;text-align:center;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+
+/* Premium calendar and time controls */
+.date-control,.time-control{position:relative}
+.date-display,.time-display{
+  min-height:54px;width:100%;padding:0 16px;border-radius:16px;
+  border:1px solid var(--line);background:var(--solid);color:var(--text);
+  display:flex;align-items:center;justify-content:space-between;
+  text-align:left;font-size:14px
+}
+.date-display:hover,.time-display:hover{border-color:var(--accent)}
+.date-display .hint,.time-display .hint{color:var(--muted);font-size:11px}
+.calendar-pop,.time-pop{
+  display:none;position:absolute;top:calc(100% + 10px);left:0;
+  z-index:30;width:min(330px,90vw);padding:19px;
+  background:var(--solid);border:1px solid var(--line);
+  border-radius:22px;box-shadow:0 18px 55px #0002;
+  backdrop-filter:blur(25px)
+}
+.calendar-pop.open,.time-pop.open{display:block;animation:fade .18s ease}
+.calendar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.calendar-head strong{font-size:14px}
+.calendar-head button,.time-head button{
+  width:32px;height:32px;border:1px solid var(--line);
+  border-radius:50%;background:var(--surface);color:var(--text)
+}
+.calendar-week,.calendar-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.calendar-week span{font-size:10px;color:var(--muted);padding:7px 0}
+.calendar-day{
+  border:0;background:transparent;color:var(--text);
+  border-radius:10px;min-height:36px;font-size:12px
+}
+.calendar-day:hover{background:var(--surface)}
+.calendar-day.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.calendar-day.selected{background:var(--text);color:var(--bg)}
+.calendar-day:disabled{opacity:.2;cursor:not-allowed}
+.calendar-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.calendar-foot button{border:0;background:transparent;color:var(--accent);font-size:11px}
+.time-pop{width:260px}
+.time-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:13px}
+.time-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.time-column label{display:block;text-align:center;color:var(--muted);font-size:10px;margin-bottom:8px}
+.time-options{height:180px;overflow:auto;border:1px solid var(--line);border-radius:14px;padding:5px}
+.time-option{display:block;width:100%;border:0;background:transparent;color:var(--text);padding:9px;border-radius:9px;font-size:13px}
+.time-option:hover{background:var(--surface)}
+.time-option.selected{background:var(--text);color:var(--bg)}
+.time-foot{display:flex;justify-content:flex-end;margin-top:12px}
+.time-foot button{border:0;background:var(--text);color:var(--bg);padding:9px 17px;border-radius:10px;font-size:11px}
+.hidden-native{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px}
+
+@media(max-width:850px){
+  .nav{grid-template-columns:1fr auto;gap:10px}
+  .nav-pill{grid-column:1/-1;grid-row:2;justify-self:center;max-width:100%;overflow:auto}
+  .nav-actions{grid-column:2;grid-row:1}
+  .grid{grid-template-columns:1fr}
+  .hero{padding-top:45px}
+}
+@media(max-width:600px){
+  .container{width:92%}
+  .nav-wrap{padding:13px 3%}
+  .brand{font-size:17px}
+  .nav-link{padding:8px 10px;font-size:11px}
+  .form-grid{grid-template-columns:1fr}
+  .full{grid-column:auto}
+  .card{padding:22px;border-radius:23px}
+  .pillars{gap:6px}
+  .pillar{padding:14px 4px}
+  .pillar strong{font-size:23px}
+  .elements{gap:5px}
+  .element{font-size:11px}
+  h1{letter-spacing:-1px}
+}
+</style>
+</head>
+
+<body>
+<div class="ambient"><div class="orb one"></div><div class="orb two"></div></div>
+
+<header class="nav-wrap">
+<nav class="nav">
+  <div class="brand" onclick="showPage('home')">新年找找看<small>FAMILY HERITAGE</small></div>
+  <div class="nav-pill">
+    <button class="nav-link active" data-page="home" onclick="showPage('home')">首页</button>
+    <button class="nav-link" data-page="bazi" onclick="showPage('bazi')">八字</button>
+    <button class="nav-link" data-page="kinship" onclick="showPage('kinship')">亲戚称呼</button>
+    <button class="nav-link" data-page="tree" onclick="showPage('tree')">家庭树</button>
+  </div>
+  <div class="nav-actions">
+    <button class="language-btn" onclick="toggleLanguage()">中 / EN</button>
+    <button class="icon-btn" id="themeButton" onclick="toggleTheme()">☾</button>
+  </div>
+</nav>
+</header>
+
+<main class="container">
+
+<!-- HOME -->
+<section class="page active" id="home">
+  <div class="hero">
+    <div class="eyebrow">FAMILY · HERITAGE · CONNECTION</div>
+    <h1 id="heroTitle">认识家人，<br>了解自己的根。</h1>
+    <p class="subtitle" id="heroSubtitle">从个人八字到亲属称呼，再到完整家族树。记录家族关系，连接每一份珍贵的记忆。</p>
+  </div>
+  <div class="grid">
+    <div class="card feature-card" onclick="showPage('bazi')">
+      <div class="feature-icon">◷</div><span class="arrow">↗</span>
+      <h3 data-zh="八字" data-en="Bazi">八字</h3>
+      <p data-zh="根据出生日期、时间与节气，排出传统四柱。" data-en="Explore your traditional Four Pillars using birth details and solar terms.">根据出生日期、时间与节气，排出传统四柱。</p>
+    </div>
+    <div class="card feature-card" onclick="showPage('kinship')">
+      <div class="feature-icon">♧</div><span class="arrow">↗</span>
+      <h3 data-zh="亲戚称呼" data-en="Kinship">亲戚称呼</h3>
+      <p data-zh="探索马来西亚华人家庭常见亲属关系。" data-en="Explore Malaysian Chinese kinship relationships.">探索马来西亚华人家庭常见亲属关系。</p>
+    </div>
+    <div class="card feature-card" onclick="showPage('tree')">
+      <div class="feature-icon">⌘</div><span class="arrow">↗</span>
+      <h3 data-zh="家庭树" data-en="Family Tree">家庭树</h3>
+      <p data-zh="建立家族成员资料，连接不同世代。" data-en="Build your family history across generations.">建立家族成员资料，连接不同世代。</p>
+    </div>
+  </div>
+</section>
+
+<!-- BAZI -->
+<section class="page" id="bazi">
+  <div class="section-head">
+    <div class="eyebrow">TRADITIONAL FOUR PILLARS</div>
+    <h2 data-zh="个人八字查询" data-en="Personal Bazi">个人八字查询</h2>
+    <p data-zh="以出生日期、当地时间及节气计算四柱。节气交界附近请特别核对出生时间。" data-en="Calculate the Four Pillars using birth details and solar terms. Verify birth times near solar-term boundaries.">以出生日期、当地时间及节气计算四柱。节气交界附近请特别核对出生时间。</p>
+  </div>
+  <div class="card">
+    <div class="form-grid">
+      <div class="field full"><label data-zh="姓名（选填）" data-en="Name (optional)">姓名（选填）</label><input id="baziName" placeholder="请输入姓名"></div>
+      <div class="field">
+        <label data-zh="出生日期（公历）" data-en="Birth date (Gregorian)">出生日期（公历）</label>
+        <div class="date-control" id="birthDateControl"></div>
+        <input class="hidden-native" type="date" id="birthDate">
+      </div>
+      <div class="field">
+        <label data-zh="出生时间（当地时间）" data-en="Local birth time">出生时间（当地时间）</label>
+        <div class="time-control" id="birthTimeControl"></div>
+        <input class="hidden-native" type="time" id="birthTime" value="12:00">
+      </div>
+      <div class="field"><label data-zh="出生地点" data-en="Birth place">出生地点</label><input id="birthPlace" placeholder="例如：Kuala Lumpur"></div>
+      <div class="field"><label data-zh="出生地时区" data-en="Birth time zone">出生地时区</label>
+        <select id="timezone">
+          <option value="8">马来西亚 UTC+8</option><option value="8">新加坡 UTC+8</option>
+          <option value="0">UTC+0</option><option value="9">日本 UTC+9</option>
+          <option value="7">泰国 UTC+7</option><option value="-5">美国东部 UTC−5（标准时）</option>
+        </select>
+      </div>
+      <div class="field"><label data-zh="性别（选填）" data-en="Gender (optional)">性别（选填）</label>
+        <select id="baziGender"><option value="other">不填写</option><option value="male">男</option><option value="female">女</option></select>
+      </div>
+      <div class="field full">
+        <label data-zh="换日规则" data-en="Day boundary convention">换日规则</label>
+        <select id="daySect"><option value="2">晚子时按次日（23:00 换日）</option><option value="1">子初换日（23:00 起算次日）</option></select>
+        <p class="form-hint">不同八字流派对子时换日有不同处理。这里提供规则选项；请按所采用的流派核对。</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary-btn" onclick="calculateBazi()" data-zh="开始排盘" data-en="Calculate chart">开始排盘</button>
+      <button class="secondary-btn" onclick="clearBazi()" data-zh="重置" data-en="Reset">重置</button>
+    </div>
+  </div>
+  <div class="card result" id="baziResult">
+    <div class="eyebrow">YOUR FOUR PILLARS</div>
+    <h2 id="resultName">个人八字</h2>
+    <p class="subtitle" id="resultInfo"></p>
+    <div class="pillars" id="pillars"></div>
+    <h3 data-zh="五行参考分布" data-en="Five Elements Reference">五行参考分布</h3>
+    <div class="elements" id="elements"></div>
+    <p class="form-hint" id="baziNote" style="margin-top:20px">
+      排盘依赖外部历法库。出生地时区需正确，当前版本尚未进行历史时区数据库与真太阳时校正。五行计数仅为简化参考，不代表命理结论。
+    </p>
+  </div>
+</section>
+
+<!-- KINSHIP -->
+<section class="page" id="kinship">
+  <div class="section-head">
+    <div class="eyebrow">MALAYSIAN CHINESE KINSHIP</div>
+    <h2 data-zh="亲戚称呼查询" data-en="Kinship Calculator">亲戚称呼查询</h2>
+    <p data-zh="从自己出发，逐步选择关系，探索亲属称呼。" data-en="Start from yourself and build a relationship path.">从自己出发，逐步选择关系，探索亲属称呼。</p>
+  </div>
+  <div class="card">
+    <div class="form-header"><h3 data-zh="关系查询" data-en="Relationship explorer">关系查询</h3><p data-zh="选择每一层关系，系统会显示对应称呼。" data-en="Select each relationship step to find the matching term.">选择每一层关系，系统会显示对应称呼。</p></div>
+    <div class="field">
+      <label data-zh="搜索亲属关系" data-en="Search relationships">搜索亲属关系</label>
+      <input id="relationSearch" placeholder="搜索爸爸、舅舅、堂哥..." oninput="renderRelations()">
+    </div>
+    <div id="relationCategories"></div>
+    <div class="form-section" style="margin-top:25px">
+      <div class="form-section-title" data-zh="目前选择的关系" data-en="Selected relationship path">目前选择的关系</div>
+      <div class="kin-path" id="kinPath"><span class="path-chip">我</span></div>
+    </div>
+    <div class="actions">
+      <button class="primary-btn" onclick="calculateKinship()" data-zh="查询称呼 →" data-en="Find term →">查询称呼 →</button>
+      <button class="secondary-btn" onclick="undoRelation()" data-zh="撤销一步" data-en="Undo">撤销一步</button>
+      <button class="secondary-btn" onclick="resetKinship()" data-zh="重置" data-en="Reset">重置</button>
+    </div>
+  </div>
+  <div class="card result" id="kinResult">
+    <div class="eyebrow">RELATIONSHIP RESULT</div>
+    <p class="subtitle" data-zh="对应的亲属称呼：" data-en="Relationship term:">对应的亲属称呼：</p>
+    <div class="answer" id="kinAnswer"></div>
+    <p class="subtitle" id="kinEnglish"></p>
+    <p class="subtitle" id="kinPathResult"></p>
+    <p class="form-hint">实际称呼可能因籍贯、方言、家庭习惯及地区而不同。</p>
+  </div>
+  <div class="card" style="margin-top:22px">
+    <div class="form-header"><h3 data-zh="亲属称呼参考" data-en="Kinship reference">亲属称呼参考</h3><p data-zh="可搜索称呼或关系。" data-en="Search by term or relationship.">可搜索称呼或关系。</p></div>
+    <input id="kinReferenceSearch" placeholder="搜索称呼或关系..." oninput="renderKinReference()" style="width:100%;height:50px;padding:0 16px;border-radius:15px;background:var(--solid);border:1px solid var(--line);color:var(--text)">
+    <div id="kinReference"></div>
+  </div>
+</section>
+
+<!-- FAMILY TREE -->
+<section class="page" id="tree">
+  <div class="section-head">
+    <div class="eyebrow">YOUR FAMILY HISTORY</div>
+    <h2 data-zh="我的家族" data-en="My Family">我的家族</h2>
+    <p data-zh="建立家族成员资料，记录不同世代的关系。" data-en="Create family profiles and connect generations.">建立家族成员资料，记录不同世代的关系。</p>
+  </div>
+  <div class="tree-toolbar">
+    <div><strong id="memberCount">0</strong> <span data-zh="位家庭成员" data-en="family members">位家庭成员</span></div>
+    <div class="actions" style="margin:0">
+      <button class="primary-btn" onclick="newMember()" data-zh="+ 添加成员" data-en="+ Add Member">+ 添加成员</button>
+      <button class="secondary-btn" onclick="exportFamily()" data-zh="导出备份" data-en="Export">导出备份</button>
+      <label class="secondary-btn" style="cursor:pointer">导入备份<input type="file" accept="application/json" onchange="importFamily(event)" hidden></label>
+    </div>
+  </div>
+  <div class="tree-board"><div class="tree-generations" id="treeGenerations"></div></div>
+
+  <div class="card member-form" id="memberForm">
+    <div class="form-header"><h3 id="memberFormTitle">添加家庭成员</h3><p data-zh="填写成员资料，并关联父母及配偶。" data-en="Enter profile details and link parents or spouse.">填写成员资料，并关联父母及配偶。</p></div>
+    <div class="form-grid">
+      <div class="field full"><label data-zh="成员姓名" data-en="Member name">成员姓名</label><input id="memberName" required placeholder="姓名"></div>
+      <div class="field"><label data-zh="性别" data-en="Gender">性别</label><select id="memberGender"><option value="male">男</option><option value="female">女</option><option value="other">不填写</option></select></div>
+      <div class="field"><label data-zh="出生日期" data-en="Birth date">出生日期</label><div id="memberBirthControl" class="date-control"></div><input id="memberBirth" class="hidden-native" type="date"></div>
+      <div class="field"><label data-zh="父亲" data-en="Father">父亲</label><select id="memberFather"></select></div>
+      <div class="field"><label data-zh="母亲" data-en="Mother">母亲</label><select id="memberMother"></select></div>
+      <div class="field"><label data-zh="配偶" data-en="Spouse">配偶</label><select id="memberSpouse"></select></div>
+      <div class="field full"><label data-zh="备注" data-en="Notes">备注</label><textarea id="memberNotes" placeholder="家庭故事、籍贯或其他资料..."></textarea></div>
+    </div>
+    <div class="actions">
+      <button class="primary-btn" onclick="saveMember()" data-zh="保存成员" data-en="Save Member">保存成员</button>
+      <button class="secondary-btn" onclick="cancelMember()" data-zh="取消" data-en="Cancel">取消</button>
+    </div>
+  </div>
+
+  <div class="card result" id="memberDetail" style="margin-top:22px">
+    <div class="eyebrow">MEMBER PROFILE</div>
+    <div id="memberDetailContent"></div>
+  </div>
+</section>
+</main>
+
+<footer data-zh="记录家族，连接记忆。" data-en="Preserve family. Connect memories.">记录家族，连接记忆。</footer>
+
+<script>
+/* ---------- Language and theme ---------- */
+let language=localStorage.getItem("fh_language")||"zh";
+let theme=localStorage.getItem("fh_theme")||"light";
+
+function applyLanguage(){
+  document.documentElement.lang=language==="zh"?"zh-CN":"en";
+  document.querySelectorAll("[data-zh]").forEach(el=>{
+    el.innerHTML=el.dataset[language];
+  });
+  document.querySelectorAll("#memberGender option").forEach((o,i)=>{
+    o.textContent=language==="zh"?["男","女","不填写"][i]:["Male","Female","Not specified"][i];
+  });
+  document.querySelectorAll("#baziGender option").forEach((o,i)=>{
+    o.textContent=language==="zh"?["不填写","男","女"][i]:["Not specified","Male","Female"][i];
+  });
+  document.getElementById("heroTitle").innerHTML=language==="zh"?"认识家人，<br>了解自己的根.":"Know your family,<br>discover your roots.";
+  document.getElementById("heroSubtitle").textContent=language==="zh"?"从个人八字到亲属称呼，再到完整家族树。记录家族关系，连接每一份珍贵的记忆。":"Explore personal Bazi, family relationships and your family tree.";
+  renderRelations();renderKinReference();renderKinPath();renderTree();
+  refreshDateDisplays();
+}
+function toggleLanguage(){language=language==="zh"?"en":"zh";localStorage.setItem("fh_language",language);applyLanguage()}
+function applyTheme(){document.documentElement.dataset.theme=theme;document.getElementById("themeButton").textContent=theme==="dark"?"☀":"☾"}
+function toggleTheme(){theme=theme==="dark"?"light":"dark";localStorage.setItem("fh_theme",theme);applyTheme()}
+function showPage(id){
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===id));
+  document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
+  if(id==="tree")renderTree();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---------- Advanced date picker ---------- */
+const datePickerState={};
+const monthNames={
+  zh:["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"],
+  en:["January","February","March","April","May","June","July","August","September","October","November","December"]
+};
+function pad(n){return String(n).padStart(2,"0")}
+function dateText(value){
+  if(!value)return language==="zh"?"选择日期":"Choose date";
+  const [y,m,d]=value.split("-").map(Number);
+  return language==="zh"?`${y}年${m}月${d}日`:`${monthNames.en[m-1]} ${d}, ${y}`;
+}
+function createDatePicker(containerId,inputId){
+  const input=document.getElementById(inputId);
+  const now=new Date();
+  const initial=input.value||"";
+  const parts=initial?initial.split("-").map(Number):[now.getFullYear(),now.getMonth()+1,now.getDate()];
+  datePickerState[inputId]={year:parts[0],month:parts[1]-1};
+  const container=document.getElementById(containerId);
+  container.innerHTML=`
+    <button type="button" class="date-display" id="${inputId}Display">
+      <span id="${inputId}Text">${dateText(initial)}</span><span class="hint">▦</span>
+    </button>
+    <div class="calendar-pop" id="${inputId}Calendar">
+      <div class="calendar-head">
+        <button type="button" onclick="changeCalendar('${inputId}',-1)">‹</button>
+        <strong id="${inputId}Month"></strong>
+        <button type="button" onclick="changeCalendar('${inputId}',1)">›</button>
+      </div>
+      <div class="calendar-week" id="${inputId}Week"></div>
+      <div class="calendar-days" id="${inputId}Days"></div>
+      <div class="calendar-foot">
+        <button type="button" onclick="calendarToday('${inputId}')">${language==="zh"?"今天":"Today"}</button>
+        <button type="button" onclick="closeCalendar('${inputId}')">${language==="zh"?"关闭":"Close"}</button>
+      </div>
+    </div>`;
+  document.getElementById(inputId+"Display").addEventListener("click",()=>{
+    closeAllPopups();
+    document.getElementById(inputId+"Calendar").classList.toggle("open");
+    renderCalendar(inputId);
+  });
+  renderCalendar(inputId);
+}
+function renderCalendar(id){
+  const state=datePickerState[id];if(!state)return;
+  const y=state.year,m=state.month;
+  document.getElementById(id+"Month").textContent=language==="zh"?`${y}年 ${m+1}月`:`${monthNames.en[m]} ${y}`;
+  document.getElementById(id+"Week").innerHTML=(language==="zh"?["日","一","二","三","四","五","六"]:["S","M","T","W","T","F","S"]).map(x=>`<span>${x}</span>`).join("");
+  const first=new Date(y,m,1).getDay(),total=new Date(y,m+1,0).getDate();
+  const input=document.getElementById(id),selected=input.value;
+  let html="";
+  for(let i=0;i<first;i++)html+="<span></span>";
+  for(let d=1;d<=total;d++){
+    const value=`${y}-${pad(m+1)}-${pad(d)}`;
+    const today=new Date();
+    const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+    html+=`<button type="button" class="calendar-day ${isToday?"today":""} ${selected===value?"selected":""}" onclick="selectCalendarDate('${id}','${value}')">${d}</button>`;
+  }
+  document.getElementById(id+"Days").innerHTML=html;
+}
+function changeCalendar(id,delta){
+  const s=datePickerState[id];s.month+=delta;
+  if(s.month<0){s.month=11;s.year--}
+  if(s.month>11){s.month=0;s.year++}
+  renderCalendar(id);
+}
+function selectCalendarDate(id,value){
+  document.getElementById(id).value=value;
+  document.getElementById(id+"Text").textContent=dateText(value);
+  closeCalendar(id);
+  renderCalendar(id);
+}
+function calendarToday(id){
+  const d=new Date();selectCalendarDate(id,`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+}
+function closeCalendar(id){document.getElementById(id+"Calendar").classList.remove("open")}
+function refreshDateDisplays(){
+  ["birthDate","memberBirth"].forEach(id=>{
+    const text=document.getElementById(id+"Text");
+    if(text)text.textContent=dateText(document.getElementById(id).value);
+    if(datePickerState[id])renderCalendar(id);
+  });
+}
+function closeAllPopups(){
+  document.querySelectorAll(".calendar-pop,.time-pop").forEach(p=>p.classList.remove("open"));
+}
+
+/* ---------- Advanced time picker ---------- */
+function createTimePicker(containerId,inputId){
+  const input=document.getElementById(inputId);
+  const container=document.getElementById(containerId);
+  container.innerHTML=`
+    <button type="button" class="time-display" id="${inputId}Display">
+      <span id="${inputId}Text">${input.value||"12:00"}</span><span class="hint">◷</span>
+    </button>
+    <div class="time-pop" id="${inputId}Popup">
+      <div class="time-head"><strong>${language==="zh"?"选择时间":"Select time"}</strong><button type="button" onclick="closeTime('${inputId}')">×</button></div>
+      <div class="time-columns">
+        <div class="time-column"><label>${language==="zh"?"小时":"HOUR"}</label><div class="time-options" id="${inputId}Hours"></div></div>
+        <div class="time-column"><label>${language==="zh"?"分钟":"MINUTE"}</label><div class="time-options" id="${inputId}Minutes"></div></div>
+      </div>
+      <div class="time-foot"><button type="button" onclick="confirmTime('${inputId}')">${language==="zh"?"确定":"Done"}</button></div>
+    </div>`;
+  document.getElementById(inputId+"Display").addEventListener("click",()=>{
+    closeAllPopups();
+    document.getElementById(inputId+"Popup").classList.add("open");
+    renderTimeOptions(inputId);
+  });
+}
+const timeTemp={};
+function renderTimeOptions(id){
+  const current=document.getElementById(id).value||"12:00";
+  const [h,m]=current.split(":").map(Number);
+  timeTemp[id]={h,m};
+  document.getElementById(id+"Hours").innerHTML=Array.from({length:24},(_,i)=>`<button class="time-option ${i===h?"selected":""}" onclick="setTimePart('${id}','h',${i})">${pad(i)}</button>`).join("");
+  document.getElementById(id+"Minutes").innerHTML=Array.from({length:60},(_,i)=>`<button class="time-option ${i===m?"selected":""}" onclick="setTimePart('${id}','m',${i})">${pad(i)}</button>`).join("");
+}
+function setTimePart(id,part,value){
+  timeTemp[id][part]=value;
+  renderTimeOptions(id);
+}
+function confirmTime(id){
+  const t=timeTemp[id],value=`${pad(t.h)}:${pad(t.m)}`;
+  document.getElementById(id).value=value;
+  document.getElementById(id+"Text").textContent=value;
+  closeTime(id);
+}
+function closeTime(id){document.getElementById(id+"Popup").classList.remove("open")}
+
+/* ---------- Bazi ---------- */
+function calculateBazi(){
+  const date=document.getElementById("birthDate").value;
+  const time=document.getElementById("birthTime").value||"12:00";
+  if(!date){alert(language==="zh"?"请选择出生日期。":"Please select a birth date.");return}
+  if(!window.Solar){alert(language==="zh"?"历法计算库加载失败，请检查网络后刷新页面。":"Calendar library failed to load. Check your connection and refresh.");return}
+  const [y,mo,d]=date.split("-").map(Number),[h,mi]=time.split(":").map(Number);
+  try{
+    const solar=Solar.fromYmdHms(y,mo,d,h,mi,0);
+    const lunar=solar.getLunar();
+    const eight=lunar.getEightChar();
+    eight.setSect(Number(document.getElementById("daySect").value));
+    const pillars=[
+      {label:language==="zh"?"年柱":"Year",gan:eight.getYearGan(),zhi:eight.getYearZhi()},
+      {label:language==="zh"?"月柱":"Month",gan:eight.getMonthGan(),zhi:eight.getMonthZhi()},
+      {label:language==="zh"?"日柱":"Day",gan:eight.getDayGan(),zhi:eight.getDayZhi()},
+      {label:language==="zh"?"时柱":"Hour",gan:eight.getTimeGan(),zhi:eight.getTimeZhi()}
+    ];
+    const wuxing={木:0,火:0,土:0,金:0,水:0};
+    const ganWuXing={甲:"木",乙:"木",丙:"火",丁:"火",戊:"土",己:"土",庚:"金",辛:"金",壬:"水",癸:"水"};
+    const zhiWuXing={子:"水",丑:"土",寅:"木",卯:"木",辰:"土",巳:"火",午:"火",未:"土",申:"金",酉:"金",戌:"土",亥:"水"};
+    pillars.forEach(p=>{wuxing[ganWuXing[p.gan]]++;wuxing[zhiWuXing[p.zhi]]++});
+    document.getElementById("resultName").textContent=document.getElementById("baziName").value.trim()||(language==="zh"?"个人八字":"Personal Bazi");
+    document.getElementById("resultInfo").textContent=`${date} · ${time} · UTC${document.getElementById("timezone").value} · ${document.getElementById("birthPlace").value||"—"}`;
+    document.getElementById("pillars").innerHTML=pillars.map(p=>`
+      <div class="pillar"><small>${p.label}</small><strong>${p.gan}</strong><strong>${p.zhi}</strong><div class="sub">${ganWuXing[p.gan]} · ${zhiWuXing[p.zhi]}</div></div>`).join("");
+    const names={木:["木","Wood"],火:["火","Fire"],土:["土","Earth"],金:["金","Metal"],水:["水","Water"]};
+    document.getElementById("elements").innerHTML=Object.entries(wuxing).map(([k,v])=>`
+      <div class="element"><span>${names[k][language==="zh"?0:1]}</span><strong>${v}</strong><small style="color:var(--muted)">/ 8</small></div>`).join("");
+    document.getElementById("baziNote").textContent=language==="zh"
+      ?"本排盘使用 lunar-javascript 历法库计算四柱及节气。输入时间按所选出生地当地民用时间处理；时区选择目前用于显示记录，尚未应用历史时区数据库或真太阳时经度校正。五行统计仅按天干与地支表层五行计数，不含藏干权重。"
+      :"Four Pillars are calculated with lunar-javascript. Birth time is treated as local civil time; the selected time zone is recorded but historical time-zone conversion and true-solar-time longitude correction are not applied. Element counts are simplified surface counts, excluding hidden stems.";
+    document.getElementById("baziResult").style.display="block";
+  }catch(e){
+    console.error(e);alert(language==="zh"?"排盘失败，请核对出生资料。":"Calculation failed. Please verify the birth details.");
+  }
+}
+function clearBazi(){
+  ["baziName","birthDate","birthPlace"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("birthTime").value="12:00";
+  document.getElementById("birthTimeText").textContent="12:00";
+  document.getElementById("baziResult").style.display="none";
+  refreshDateDisplays();
+}
+
+/* ---------- Kinship database ---------- */
+const relationGroups=[
+  {name:"父系长辈",items:[
+    ["爸爸","Father","father"],["爷爷","Paternal grandfather","grandfather"],["奶奶","Paternal grandmother","grandmother"],
+    ["伯伯","Father's elder brother","fatherElderBrother"],["叔叔","Father's younger brother","fatherYoungerBrother"],
+    ["姑姑","Father's sister","fatherSister"],["伯母","Wife of father's elder brother","auntByFatherElder"],
+    ["婶婶","Wife of father's younger brother","auntByFatherYounger"],["姑丈","Husband of father's sister","uncleByFatherSister"]
+  ]},
+  {name:"母系长辈",items:[
+    ["妈妈","Mother","mother"],["外公","Maternal grandfather","maternalGrandfather"],["外婆","Maternal grandmother","maternalGrandmother"],
+    ["舅舅","Mother's brother","maternalUncle"],["舅母","Wife of maternal uncle","maternalUncleWife"],
+    ["姨妈","Mother's sister","maternalAunt"],["姨丈","Husband of maternal aunt","maternalAuntHusband"]
+  ]},
+  {name:"兄弟姐妹",items:[
+    ["哥哥","Older brother","olderBrother"],["弟弟","Younger brother","youngerBrother"],
+    ["姐姐","Older sister","olderSister"],["妹妹","Younger sister","youngerSister"],
+    ["嫂嫂","Older brother's wife","sisterInLawOlder"],["弟媳","Younger brother's wife","sisterInLawYounger"],
+    ["姐夫","Older sister's husband","brotherInLawOlder"],["妹夫","Younger sister's husband","brotherInLawYounger"]
+  ]},
+  {name:"堂亲与表亲",items:[
+    ["堂哥","Paternal male cousin (older)","paternalCousinOlderMale"],["堂弟","Paternal male cousin (younger)","paternalCousinYoungerMale"],
+    ["堂姐","Paternal female cousin (older)","paternalCousinOlderFemale"],["堂妹","Paternal female cousin (younger)","paternalCousinYoungerFemale"],
+    ["表哥","Maternal or cross-line male cousin (older)","cousinOlderMale"],["表弟","Maternal or cross-line male cousin (younger)","cousinYoungerMale"],
+    ["表姐","Maternal or cross-line female cousin (older)","cousinOlderFemale"],["表妹","Maternal or cross-line female cousin (younger)","cousinYoungerFemale"]
+  ]},
+  {name:"婚姻与姻亲",items:[
+    ["丈夫","Husband","husband"],["妻子","Wife","wife"],["公公","Husband's father","fatherInLawHusband"],
+    ["婆婆","Husband's mother","motherInLawHusband"],["岳父","Wife's father","fatherInLawWife"],
+    ["岳母","Wife's mother","motherInLawWife"],["女婿","Son-in-law","sonInLaw"],["媳妇","Daughter-in-law","daughterInLaw"],
+    ["连襟","Husbands of sisters","coBrothersInLaw"],["妯娌","Wives of brothers","coSistersInLaw"]
+  ]},
+  {name:"子孙与后代",items:[
+    ["儿子","Son","son"],["女儿","Daughter","daughter"],["孙子","Son's son","grandson"],
+    ["孙女","Son's daughter","granddaughter"],["外孙","Daughter's son","maternalGrandson"],
+    ["外孙女","Daughter's daughter","maternalGranddaughter"],["曾孙","Great-grandson","greatGrandson"],
+    ["曾孙女","Great-granddaughter","greatGranddaughter"],["侄子","Brother's son","nephewBrother"],
+    ["侄女","Brother's daughter","nieceBrother"],["外甥","Sister's son","nephewSister"],["外甥女","Sister's daughter","nieceSister"]
+  ]}
+];
+let kinPath=[];
+function allRelations(){return relationGroups.flatMap(g=>g.items)}
+function renderRelations(){
+  const q=(document.getElementById("relationSearch").value||"").trim().toLowerCase();
+  document.getElementById("relationCategories").innerHTML=relationGroups.map(g=>{
+    const items=g.items.filter(x=>!q||x.join(" ").toLowerCase().includes(q));
+    if(!items.length)return "";
+    return `<div class="category"><h3>${g.name}</h3><div class="relation-list">${items.map(x=>`<button class="relation-btn" onclick="addRelation('${x[2]}')">${language==="zh"?x[0]:x[1]}</button>`).join("")}</div></div>`;
+  }).join("");
+}
+function addRelation(id){kinPath.push(id);renderKinPath()}
+function renderKinPath(){
+  const names=kinPath.map(id=>{const r=allRelations().find(x=>x[2]===id);return r?(language==="zh"?r[0]:r[1]):id});
+  document.getElementById("kinPath").innerHTML=`<span class="path-chip">${language==="zh"?"我":"Me"}</span>`+names.map(n=>`<span class="path-chip">${escapeHTML(n)}</span>`).join("");
+}
+function undoRelation(){kinPath.pop();renderKinPath()}
+function resetKinship(){kinPath=[];renderKinPath();document.getElementById("kinResult").style.display="none"}
+const kinDictionary={
+  "father":["爸爸","Father"],"mother":["妈妈","Mother"],
+  "fatherElderBrother":["伯伯","Father's elder brother"],"fatherYoungerBrother":["叔叔","Father's younger brother"],
+  "fatherSister":["姑姑","Father's sister"],"maternalUncle":["舅舅","Mother's brother"],
+  "maternalAunt":["姨妈","Mother's sister"],"grandfather":["爷爷","Paternal grandfather"],
+  "grandmother":["奶奶","Paternal grandmother"],"maternalGrandfather":["外公","Maternal grandfather"],
+  "maternalGrandmother":["外婆","Maternal grandmother"],"husband":["丈夫","Husband"],"wife":["妻子","Wife"],
+  "olderBrother":["哥哥","Older brother"],"youngerBrother":["弟弟","Younger brother"],
+  "olderSister":["姐姐","Older sister"],"youngerSister":["妹妹","Younger sister"],
+  "son":["儿子","Son"],"daughter":["女儿","Daughter"],
+  "father.father":["爷爷","Paternal grandfather"],"father.mother":["奶奶","Paternal grandmother"],
+  "mother.father":["外公","Maternal grandfather"],"mother.mother":["外婆","Maternal grandmother"],
+  "father.fatherElderBrother":["伯公","Grandfather's elder brother"],
+  "father.fatherYoungerBrother":["叔公","Grandfather's younger brother"],
+  "fatherElderBrother.wife":["伯母","Father's elder brother's wife"],
+  "fatherYoungerBrother.wife":["婶婶","Father's younger brother's wife"],
+  "fatherSister.husband":["姑丈","Father's sister's husband"],
+  "maternalUncle.wife":["舅母","Mother's brother's wife"],
+  "maternalAunt.husband":["姨丈","Mother's sister's husband"]
+};
+function calculateKinship(){
+  if(!kinPath.length){alert(language==="zh"?"请先选择关系。":"Please select a relationship.");return}
+  const key=kinPath.join(".");
+  const result=kinDictionary[key];
+  document.getElementById("kinAnswer").textContent=result?result[language==="zh"?0:1]:(language==="zh"?"此关系组合尚未收录":"This relationship combination is not yet in the dictionary");
+  document.getElementById("kinEnglish").textContent=result?(language==="zh"?result[1]:result[0]):"";
+  document.getElementById("kinPathResult").textContent=kinPath.map(id=>{
+    const r=allRelations().find(x=>x[2]===id);return r?(language==="zh"?r[0]:r[1]):id
+  }).join(" → ");
+  document.getElementById("kinResult").style.display="block";
+}
+function renderKinReference(){
+  const q=(document.getElementById("kinReferenceSearch").value||"").toLowerCase();
+  const rows=relationGroups.flatMap(g=>g.items.map(x=>[g.name,x[0],x[1]]))
+    .filter(x=>x.join(" ").toLowerCase().includes(q));
+  document.getElementById("kinReference").innerHTML=rows.map(x=>`
+    <div class="reference-row"><span>${x[0]} · ${language==="zh"?x[1]:x[2]}</span><strong>${language==="zh"?x[1]:x[2]}</strong></div>`).join("");
+}
+
+/* ---------- Family tree ---------- */
+let family=JSON.parse(localStorage.getItem("fh_family")||"[]");
+let editingId=null;
+function saveFamilyData(){localStorage.setItem("fh_family",JSON.stringify(family))}
+function newMember(){
+  editingId=null;
+  document.getElementById("memberFormTitle").textContent=language==="zh"?"添加家庭成员":"Add Family Member";
+  ["memberName","memberBirth","memberNotes"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("memberGender").value="male";
+  populateParents();
+  ["memberFather","memberMother","memberSpouse"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("memberForm").style.display="block";
+  document.getElementById("memberForm").scrollIntoView({behavior:"smooth",block:"center"});
+  refreshDateDisplays();
+}
+function populateParents(){
+  ["memberFather","memberMother","memberSpouse"].forEach(id=>{
+    const s=document.getElementById(id),old=s.value;
+    s.innerHTML=`<option value="">${language==="zh"?"无／未填写":"None / Unknown"}</option>`+
+      family.filter(m=>m.id!==editingId).map(m=>`<option value="${m.id}">${escapeHTML(m.name)}</option>`).join("");
+    if(family.some(m=>m.id===old))s.value=old;
+  });
+}
+function saveMember(){
+  const name=document.getElementById("memberName").value.trim();
+  if(!name){alert(language==="zh"?"请输入成员姓名。":"Enter a member name.");return}
+  const father=document.getElementById("memberFather").value;
+  const mother=document.getElementById("memberMother").value;
+  const spouse=document.getElementById("memberSpouse").value;
+  if(father&&father===mother){alert("父亲和母亲不能是同一人。");return}
+  if(father===editingId||mother===editingId){alert("不能将自己设为自己的父母。");return}
+  const data={name,gender:document.getElementById("memberGender").value,birth:document.getElementById("memberBirth").value,father,mother,spouse,notes:document.getElementById("memberNotes").value.trim()};
+  if(editingId){Object.assign(family.find(m=>m.id===editingId),data)}
+  else family.push({id:crypto.randomUUID(),...data});
+  saveFamilyData();cancelMember();renderTree();
+}
+function cancelMember(){document.getElementById("memberForm").style.display="none"}
+function editMember(id){
+  const m=family.find(x=>x.id===id);if(!m)return;
+  editingId=id;
+  document.getElementById("memberFormTitle").textContent=language==="zh"?"编辑家庭成员":"Edit Family Member";
+  document.getElementById("memberName").value=m.name;
+  document.getElementById("memberGender").value=m.gender;
+  document.getElementById("memberBirth").value=m.birth||"";
+  document.getElementById("memberNotes").value=m.notes||"";
+  populateParents();
+  document.getElementById("memberFather").value=m.father||"";
+  document.getElementById("memberMother").value=m.mother||"";
+  document.getElementById("memberSpouse").value=m.spouse||"";
+  document.getElementById("memberForm").style.display="block";
+  refreshDateDisplays();
+  document.getElementById("memberForm").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function deleteMember(id){
+  const m=family.find(x=>x.id===id);if(!m)return;
+  if(!confirm(language==="zh"?`确定删除 ${m.name}？`:`Delete ${m.name}?`))return;
+  family=family.filter(x=>x.id!==id);
+  family.forEach(x=>{if(x.father===id)x.father="";if(x.mother===id)x.mother="";if(x.spouse===id)x.spouse=""});
+  saveFamilyData();renderTree();document.getElementById("memberDetail").style.display="none";
+}
+function showMember(id){
+  const m=family.find(x=>x.id===id);if(!m)return;
+  const nameOf=id=>family.find(x=>x.id===id)?.name||"—";
+  document.getElementById("memberDetailContent").innerHTML=`
+    <h2>${escapeHTML(m.name)}</h2>
+    <p class="subtitle">${m.birth||"—"}</p>
+    <div style="font-size:13px;line-height:2.1">
+      父亲：${escapeHTML(nameOf(m.father))}<br>
+      母亲：${escapeHTML(nameOf(m.mother))}<br>
+      配偶：${escapeHTML(nameOf(m.spouse))}<br>
+      备注：${escapeHTML(m.notes||"无")}
+    </div>
+    <div class="actions">
+      <button class="primary-btn" onclick="editMember('${m.id}')">编辑资料</button>
+      <button class="danger-btn" onclick="deleteMember('${m.id}')">删除成员</button>
+    </div>`;
+  document.getElementById("memberDetail").style.display="block";
+}
+function generationOf(m,seen=new Set()){
+  if(seen.has(m.id))return 0;seen.add(m.id);
+  const parents=[m.father,m.mother].map(id=>family.find(x=>x.id===id)).filter(Boolean);
+  return parents.length?1+Math.max(...parents.map(p=>generationOf(p,seen))):0;
+}
+function renderTree(){
+  document.getElementById("memberCount").textContent=family.length;
+  const board=document.getElementById("treeGenerations");
+  if(!family.length){
+    board.innerHTML=`<div style="padding:25px"><h3>${language==="zh"?"开始建立你的家族":"Start your family tree"}</h3><p class="subtitle">${language==="zh"?"添加祖父母、父母及其他家庭成员。":"Add grandparents, parents and family members."}</p><button class="primary-btn" onclick="newMember()">${language==="zh"?"添加第一位成员":"Add first member"}</button></div>`;
+    return;
+  }
+  const groups=new Map();
+  family.forEach(m=>{const g=generationOf(m);if(!groups.has(g))groups.set(g,[]);groups.get(g).push(m)});
+  board.innerHTML=[...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([g,members])=>`
+    <div class="generation"><div class="generation-title">${language==="zh"?"第 "+(g+1)+" 世代":"Generation "+(g+1)}</div>
+    ${members.map(m=>`<div class="person"><div class="avatar">${m.gender==="male"?"♂":m.gender==="female"?"♀":"•"}</div><strong>${escapeHTML(m.name)}</strong><small>${m.birth||"—"}</small><button onclick="showMember('${m.id}')">${language==="zh"?"查看资料":"View details"}</button></div>`).join("")}
+    </div>`).join("");
+}
+function exportFamily(){
+  const blob=new Blob([JSON.stringify(family,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="family-heritage-backup.json";a.click();URL.revokeObjectURL(url);
+}
+function importFamily(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data)||!data.every(m=>m&&typeof m.id==="string"&&typeof m.name==="string"))throw Error();
+      if(!confirm(language==="zh"?"导入将替换当前家庭树，确定继续？":"Import will replace the current family tree. Continue?"))return;
+      const ids=new Set(data.map(m=>m.id));
+      family=data.map(m=>({id:m.id,name:m.name,gender:m.gender||"other",birth:m.birth||"",father:ids.has(m.father)?m.father:"",mother:ids.has(m.mother)?m.mother:"",spouse:ids.has(m.spouse)?m.spouse:"",notes:m.notes||""}));
+      saveFamilyData();renderTree();
+      alert(language==="zh"?"导入成功。":"Import successful.");
+    }catch(e){alert(language==="zh"?"文件格式不正确。":"Invalid backup file.")}
+  };
+  reader.readAsText(file);event.target.value="";
+}
+function escapeHTML(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+/* ---------- Initialize ---------- */
+applyTheme();
+createDatePicker("birthDateControl","birthDate");
+createDatePicker("memberBirthControl","memberBirth");
+createTimePicker("birthTimeControl","birthTime");
+applyLanguage();
+renderTree();
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".date-control,.time-control"))closeAllPopups();
+});
+</script>
+</body>
+</html>
