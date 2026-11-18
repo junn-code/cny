@@ -147,6 +147,15 @@ h3{font-size:18px;margin:0 0 10px}
   padding:10px 14px;border-radius:100px;font-size:12px
 }
 .relation-btn:hover,.relation-btn.selected{border-color:var(--accent);background:var(--text);color:var(--bg)}
+.kin-context{padding:13px 16px;border-radius:15px;background:var(--solid);border:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.8;margin-top:14px}
+.kin-step-title{font-size:12px;color:var(--muted);margin:18px 0 8px}
+.kin-result-note{padding:14px 16px;border-radius:15px;background:var(--solid);border:1px solid var(--line);font-size:12px;line-height:1.8;color:var(--muted);margin-top:14px}
+.tree-generations{display:flex;gap:34px;align-items:flex-start;min-width:max-content}
+.generation{min-width:190px;display:flex;flex-direction:column;gap:13px;align-items:center}
+.person{width:190px;padding:15px;background:var(--solid);border:1px solid var(--line);border-radius:17px;text-align:center}
+.person .relation-meta{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.6}
+.person-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.person button{margin-top:9px;border:0;background:transparent;color:var(--accent);font-size:11px}
 .reference-row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:13px}
 .reference-row span{color:var(--muted)}
 .tree-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
@@ -350,6 +359,7 @@ footer{padding:30px 5%;text-align:center;color:var(--muted);font-size:11px;borde
       <label data-zh="搜索亲属关系" data-en="Search relationships">搜索亲属关系</label>
       <input id="relationSearch" placeholder="搜索爸爸、舅舅、堂哥..." oninput="renderRelations()">
     </div>
+    <div class="kin-context" id="kinContext">每一步都表示「相对于上一位成员」的关系。例如：我 → 爸爸 → 哥哥 → 儿子，代表爸爸的哥哥的儿子。</div>
     <div id="relationCategories"></div>
     <div class="form-section" style="margin-top:25px">
       <div class="form-section-title" data-zh="目前选择的关系" data-en="Selected relationship path">目前选择的关系</div>
@@ -367,7 +377,7 @@ footer{padding:30px 5%;text-align:center;color:var(--muted);font-size:11px;borde
     <div class="answer" id="kinAnswer"></div>
     <p class="subtitle" id="kinEnglish"></p>
     <p class="subtitle" id="kinPathResult"></p>
-    <p class="form-hint">实际称呼可能因籍贯、方言、家庭习惯及地区而不同。</p>
+    <div class="kin-result-note" id="kinResultNote">实际称呼可能因籍贯、方言、家庭习惯及地区而不同。若缺少年龄或性别资料，系统会显示较宽泛的关系，不会擅自推断。</div>
   </div>
   <div class="card" style="margin-top:22px">
     <div class="form-header"><h3 data-zh="亲属称呼参考" data-en="Kinship reference">亲属称呼参考</h3><p data-zh="可搜索称呼或关系。" data-en="Search by term or relationship.">可搜索称呼或关系。</p></div>
@@ -624,103 +634,196 @@ function clearBazi(){
   refreshDateDisplays();
 }
 
-/* ---------- Kinship database ---------- */
+/* ---------- Kinship engine ---------- */
+/*
+  每个步骤均相对于「上一位成员」：
+  father -> olderBrother -> son = 爸爸的哥哥的儿子。
+  不把“伯伯/叔叔/堂哥”等最终称呼放进步骤按钮，
+  避免把相对于“我”的称呼错误地套用到其他家庭成员。
+*/
 const relationGroups=[
-  {name:"父系长辈",items:[
-    ["爸爸","Father","father"],["爷爷","Paternal grandfather","grandfather"],["奶奶","Paternal grandmother","grandmother"],
-    ["伯伯","Father's elder brother","fatherElderBrother"],["叔叔","Father's younger brother","fatherYoungerBrother"],
-    ["姑姑","Father's sister","fatherSister"],["伯母","Wife of father's elder brother","auntByFatherElder"],
-    ["婶婶","Wife of father's younger brother","auntByFatherYounger"],["姑丈","Husband of father's sister","uncleByFatherSister"]
-  ]},
-  {name:"母系长辈",items:[
-    ["妈妈","Mother","mother"],["外公","Maternal grandfather","maternalGrandfather"],["外婆","Maternal grandmother","maternalGrandmother"],
-    ["舅舅","Mother's brother","maternalUncle"],["舅母","Wife of maternal uncle","maternalUncleWife"],
-    ["姨妈","Mother's sister","maternalAunt"],["姨丈","Husband of maternal aunt","maternalAuntHusband"]
+  {name:"父母",items:[
+    ["爸爸","Father","father"],["妈妈","Mother","mother"]
   ]},
   {name:"兄弟姐妹",items:[
     ["哥哥","Older brother","olderBrother"],["弟弟","Younger brother","youngerBrother"],
-    ["姐姐","Older sister","olderSister"],["妹妹","Younger sister","youngerSister"],
-    ["嫂嫂","Older brother's wife","sisterInLawOlder"],["弟媳","Younger brother's wife","sisterInLawYounger"],
-    ["姐夫","Older sister's husband","brotherInLawOlder"],["妹夫","Younger sister's husband","brotherInLawYounger"]
+    ["姐姐","Older sister","olderSister"],["妹妹","Younger sister","youngerSister"]
   ]},
-  {name:"堂亲与表亲",items:[
-    ["堂哥","Paternal male cousin (older)","paternalCousinOlderMale"],["堂弟","Paternal male cousin (younger)","paternalCousinYoungerMale"],
-    ["堂姐","Paternal female cousin (older)","paternalCousinOlderFemale"],["堂妹","Paternal female cousin (younger)","paternalCousinYoungerFemale"],
-    ["表哥","Maternal or cross-line male cousin (older)","cousinOlderMale"],["表弟","Maternal or cross-line male cousin (younger)","cousinYoungerMale"],
-    ["表姐","Maternal or cross-line female cousin (older)","cousinOlderFemale"],["表妹","Maternal or cross-line female cousin (younger)","cousinYoungerFemale"]
+  {name:"子女",items:[
+    ["儿子","Son","son"],["女儿","Daughter","daughter"]
   ]},
-  {name:"婚姻与姻亲",items:[
-    ["丈夫","Husband","husband"],["妻子","Wife","wife"],["公公","Husband's father","fatherInLawHusband"],
-    ["婆婆","Husband's mother","motherInLawHusband"],["岳父","Wife's father","fatherInLawWife"],
-    ["岳母","Wife's mother","motherInLawWife"],["女婿","Son-in-law","sonInLaw"],["媳妇","Daughter-in-law","daughterInLaw"],
-    ["连襟","Husbands of sisters","coBrothersInLaw"],["妯娌","Wives of brothers","coSistersInLaw"]
-  ]},
-  {name:"子孙与后代",items:[
-    ["儿子","Son","son"],["女儿","Daughter","daughter"],["孙子","Son's son","grandson"],
-    ["孙女","Son's daughter","granddaughter"],["外孙","Daughter's son","maternalGrandson"],
-    ["外孙女","Daughter's daughter","maternalGranddaughter"],["曾孙","Great-grandson","greatGrandson"],
-    ["曾孙女","Great-granddaughter","greatGranddaughter"],["侄子","Brother's son","nephewBrother"],
-    ["侄女","Brother's daughter","nieceBrother"],["外甥","Sister's son","nephewSister"],["外甥女","Sister's daughter","nieceSister"]
+  {name:"配偶",items:[
+    ["丈夫","Husband","husband"],["妻子","Wife","wife"]
   ]}
+];
+const kinReferenceData=[
+  ["父母","爸爸","Father"],["父母","妈妈","Mother"],
+  ["祖父母","爷爷","Paternal grandfather"],["祖父母","奶奶","Paternal grandmother"],
+  ["祖父母","外公","Maternal grandfather"],["祖父母","外婆","Maternal grandmother"],
+  ["父系长辈","伯伯／伯父","Father's elder brother"],["父系长辈","叔叔／叔父","Father's younger brother"],
+  ["父系长辈","姑姑","Father's sister"],["父系长辈","伯母","Wife of father's elder brother"],
+  ["父系长辈","婶婶","Wife of father's younger brother"],["父系长辈","姑丈","Husband of father's sister"],
+  ["母系长辈","舅舅","Mother's brother"],["母系长辈","舅母","Wife of maternal uncle"],
+  ["母系长辈","姨妈／阿姨","Mother's sister"],["母系长辈","姨丈","Husband of maternal aunt"],
+  ["兄弟姐妹","哥哥","Older brother"],["兄弟姐妹","弟弟","Younger brother"],
+  ["兄弟姐妹","姐姐","Older sister"],["兄弟姐妹","妹妹","Younger sister"],
+  ["姻亲","嫂嫂","Older brother's wife"],["姻亲","弟媳","Younger brother's wife"],
+  ["姻亲","姐夫","Older sister's husband"],["姻亲","妹夫","Younger sister's husband"],
+  ["姻亲","公公","Husband's father"],["姻亲","婆婆","Husband's mother"],
+  ["姻亲","岳父","Wife's father"],["姻亲","岳母","Wife's mother"],
+  ["姻亲","女婿","Son-in-law"],["姻亲","媳妇／儿媳","Daughter-in-law"],
+  ["堂表亲","堂哥","Older male paternal cousin"],["堂表亲","堂弟","Younger male paternal cousin"],
+  ["堂表亲","堂姐","Older female paternal cousin"],["堂表亲","堂妹","Younger female paternal cousin"],
+  ["堂表亲","表哥","Older male cousin (maternal/cross-line)"],["堂表亲","表弟","Younger male cousin (maternal/cross-line)"],
+  ["堂表亲","表姐","Older female cousin (maternal/cross-line)"],["堂表亲","表妹","Younger female cousin (maternal/cross-line)"],
+  ["子孙后代","儿子","Son"],["子孙后代","女儿","Daughter"],
+  ["子孙后代","孙子","Son's son"],["子孙后代","孙女","Son's daughter"],
+  ["子孙后代","外孙","Daughter's son"],["子孙后代","外孙女","Daughter's daughter"],
+  ["旁系晚辈","侄子","Brother's son"],["旁系晚辈","侄女","Brother's daughter"],
+  ["旁系晚辈","外甥","Sister's son"],["旁系晚辈","外甥女","Sister's daughter"]
 ];
 let kinPath=[];
 function allRelations(){return relationGroups.flatMap(g=>g.items)}
+function relationName(id){
+  const r=allRelations().find(x=>x[2]===id);
+  return r?(language==="zh"?r[0]:r[1]):id;
+}
 function renderRelations(){
   const q=(document.getElementById("relationSearch").value||"").trim().toLowerCase();
-  document.getElementById("relationCategories").innerHTML=relationGroups.map(g=>{
+  const host=document.getElementById("relationCategories");
+  host.innerHTML=relationGroups.map(g=>{
     const items=g.items.filter(x=>!q||x.join(" ").toLowerCase().includes(q));
     if(!items.length)return "";
-    return `<div class="category"><h3>${g.name}</h3><div class="relation-list">${items.map(x=>`<button class="relation-btn" onclick="addRelation('${x[2]}')">${language==="zh"?x[0]:x[1]}</button>`).join("")}</div></div>`;
+    return `<div class="category"><h3>${g.name}</h3><div class="relation-list">${items.map(x=>
+      `<button class="relation-btn" onclick="addRelation('${x[2]}')">${language==="zh"?x[0]:x[1]}</button>`
+    ).join("")}</div></div>`;
   }).join("");
+  const context=document.getElementById("kinContext");
+  if(context){
+    context.textContent=language==="zh"
+      ?"每一步都表示「相对于上一位成员」的关系。例如：我 → 爸爸 → 哥哥 → 儿子，代表爸爸的哥哥的儿子。"
+      :"Each step is relative to the previous person. Example: Me → Father → Older brother → Son.";
+  }
 }
-function addRelation(id){kinPath.push(id);renderKinPath()}
+function addRelation(id){
+  kinPath.push(id);
+  renderKinPath();
+  document.getElementById("kinResult").style.display="none";
+}
 function renderKinPath(){
-  const names=kinPath.map(id=>{const r=allRelations().find(x=>x[2]===id);return r?(language==="zh"?r[0]:r[1]):id});
-  document.getElementById("kinPath").innerHTML=`<span class="path-chip">${language==="zh"?"我":"Me"}</span>`+names.map(n=>`<span class="path-chip">${escapeHTML(n)}</span>`).join("");
+  const names=kinPath.map(relationName);
+  document.getElementById("kinPath").innerHTML=
+    `<span class="path-chip">${language==="zh"?"我":"Me"}</span>`+
+    names.map(n=>`<span class="path-chip">${escapeHTML(n)}</span>`).join("");
 }
 function undoRelation(){kinPath.pop();renderKinPath()}
-function resetKinship(){kinPath=[];renderKinPath();document.getElementById("kinResult").style.display="none"}
-const kinDictionary={
-  "father":["爸爸","Father"],"mother":["妈妈","Mother"],
-  "fatherElderBrother":["伯伯","Father's elder brother"],"fatherYoungerBrother":["叔叔","Father's younger brother"],
-  "fatherSister":["姑姑","Father's sister"],"maternalUncle":["舅舅","Mother's brother"],
-  "maternalAunt":["姨妈","Mother's sister"],"grandfather":["爷爷","Paternal grandfather"],
-  "grandmother":["奶奶","Paternal grandmother"],"maternalGrandfather":["外公","Maternal grandfather"],
-  "maternalGrandmother":["外婆","Maternal grandmother"],"husband":["丈夫","Husband"],"wife":["妻子","Wife"],
-  "olderBrother":["哥哥","Older brother"],"youngerBrother":["弟弟","Younger brother"],
-  "olderSister":["姐姐","Older sister"],"youngerSister":["妹妹","Younger sister"],
-  "son":["儿子","Son"],"daughter":["女儿","Daughter"],
-  "father.father":["爷爷","Paternal grandfather"],"father.mother":["奶奶","Paternal grandmother"],
-  "mother.father":["外公","Maternal grandfather"],"mother.mother":["外婆","Maternal grandmother"],
-  "father.fatherElderBrother":["伯公","Grandfather's elder brother"],
-  "father.fatherYoungerBrother":["叔公","Grandfather's younger brother"],
-  "fatherElderBrother.wife":["伯母","Father's elder brother's wife"],
-  "fatherYoungerBrother.wife":["婶婶","Father's younger brother's wife"],
-  "fatherSister.husband":["姑丈","Father's sister's husband"],
-  "maternalUncle.wife":["舅母","Mother's brother's wife"],
-  "maternalAunt.husband":["姨丈","Mother's sister's husband"]
-};
+function resetKinship(){
+  kinPath=[];renderKinPath();
+  document.getElementById("kinResult").style.display="none";
+  document.getElementById("relationSearch").value="";
+  renderRelations();
+}
+function pathRule(path){
+  const k=path.join(".");
+  const exact={
+    "father":["爸爸","Father"],"mother":["妈妈","Mother"],
+    "father.father":["爷爷","Paternal grandfather"],
+    "father.mother":["奶奶","Paternal grandmother"],
+    "mother.father":["外公","Maternal grandfather"],
+    "mother.mother":["外婆","Maternal grandmother"],
+    "father.olderBrother":["伯伯／伯父","Father's elder brother"],
+    "father.youngerBrother":["叔叔／叔父","Father's younger brother"],
+    "father.olderSister":["姑姑","Father's elder sister"],
+    "father.youngerSister":["姑姑","Father's younger sister"],
+    "mother.olderBrother":["舅舅","Mother's elder brother"],
+    "mother.youngerBrother":["舅舅","Mother's younger brother"],
+    "mother.olderSister":["姨妈／阿姨","Mother's elder sister"],
+    "mother.youngerSister":["姨妈／阿姨","Mother's younger sister"],
+    "father.olderBrother.wife":["伯母","Wife of father's elder brother"],
+    "father.youngerBrother.wife":["婶婶","Wife of father's younger brother"],
+    "father.olderSister.husband":["姑丈","Husband of father's sister"],
+    "father.youngerSister.husband":["姑丈","Husband of father's sister"],
+    "mother.olderBrother.wife":["舅母","Wife of maternal uncle"],
+    "mother.youngerBrother.wife":["舅母","Wife of maternal uncle"],
+    "mother.olderSister.husband":["姨丈","Husband of maternal aunt"],
+    "mother.youngerSister.husband":["姨丈","Husband of maternal aunt"],
+    "father.son":["哥哥／弟弟","Father's son (your sibling; age order needed)"],
+    "mother.son":["哥哥／弟弟","Mother's son (your sibling; age order needed)"],
+    "father.daughter":["姐姐／妹妹","Father's daughter (your sibling; age order needed)"],
+    "mother.daughter":["姐姐／妹妹","Mother's daughter (your sibling; age order needed)"]
+  };
+  if(exact[k])return {term:exact[k][0],en:exact[k][1],note:"direct"};
+  // Cousins through father's siblings are 堂亲; through mother's siblings are 表亲.
+  if(path.length===3 && path[0]==="father" &&
+     ["olderBrother","youngerBrother"].includes(path[1]) &&
+     ["son","daughter"].includes(path[2])){
+    return {term:path[2]==="son"?"堂兄弟":"堂姐妹",
+      en:path[2]==="son"?"Paternal male cousins":"Paternal female cousins",
+      note:"cousin"};
+  }
+  if(path.length===3 && path[0]==="father" &&
+     ["olderSister","youngerSister"].includes(path[1]) &&
+     ["son","daughter"].includes(path[2])){
+    return {term:path[2]==="son"?"表兄弟":"表姐妹",
+      en:path[2]==="son"?"Cousins through paternal aunt":"Cousins through paternal aunt",
+      note:"cousin"};
+  }
+  if(path.length===3 && path[0]==="mother" &&
+     ["olderBrother","youngerBrother","olderSister","youngerSister"].includes(path[1]) &&
+     ["son","daughter"].includes(path[2])){
+    return {term:path[2]==="son"?"表兄弟":"表姐妹",
+      en:path[2]==="son"?"Cousins through maternal uncle/aunt":"Cousins through maternal uncle/aunt",
+      note:"cousin"};
+  }
+  if(path.length===1 && ["olderBrother","youngerBrother","olderSister","youngerSister"].includes(path[0])){
+    return {term:relationName(path[0]),en:relationName(path[0]),note:"direct"};
+  }
+  if(path.length===1 && ["son","daughter","husband","wife"].includes(path[0])){
+    return {term:relationName(path[0]),en:relationName(path[0]),note:"direct"};
+  }
+  // Common direct descendants, avoiding unsupported assumptions about the intervening gender.
+  if(k==="son.son")return {term:"孙子",en:"Son's son",note:"direct"};
+  if(k==="son.daughter")return {term:"孙女",en:"Son's daughter",note:"direct"};
+  if(k==="daughter.son")return {term:"外孙",en:"Daughter's son",note:"direct"};
+  if(k==="daughter.daughter")return {term:"外孙女",en:"Daughter's daughter",note:"direct"};
+  if(k==="son.son.son")return {term:"曾孙",en:"Great-grandson",note:"direct"};
+  if(k==="son.son.daughter")return {term:"曾孙女",en:"Great-granddaughter",note:"direct"};
+  return null;
+}
 function calculateKinship(){
   if(!kinPath.length){alert(language==="zh"?"请先选择关系。":"Please select a relationship.");return}
-  const key=kinPath.join(".");
-  const result=kinDictionary[key];
-  document.getElementById("kinAnswer").textContent=result?result[language==="zh"?0:1]:(language==="zh"?"此关系组合尚未收录":"This relationship combination is not yet in the dictionary");
-  document.getElementById("kinEnglish").textContent=result?(language==="zh"?result[1]:result[0]):"";
-  document.getElementById("kinPathResult").textContent=kinPath.map(id=>{
-    const r=allRelations().find(x=>x[2]===id);return r?(language==="zh"?r[0]:r[1]):id
-  }).join(" → ");
+  const result=pathRule(kinPath);
+  const answer=document.getElementById("kinAnswer");
+  answer.textContent=result?(language==="zh"?result.term:result.en):
+    (language==="zh"?"暂未能可靠判断":"Relationship not confidently resolved");
+  document.getElementById("kinEnglish").textContent=result?(language==="zh"?result.en:result.term):
+    (language==="zh"?"当前关系组合尚未收录，系统不会猜测称呼。":"This path is not in the current rule set; no term is guessed.");
+  document.getElementById("kinPathResult").textContent=
+    (language==="zh"?"关系路径：":"Path: ")+["我",...kinPath.map(relationName)].join(" → ");
+  document.getElementById("kinResultNote").textContent=result
+    ?(language==="zh"
+      ?"提示：若要进一步区分堂哥／堂弟、堂姐／堂妹或表哥／表弟、表姐／表妹，需要知道对方性别及年龄排行。马来西亚华人家庭也可能因籍贯、方言和家庭习惯使用不同叫法。"
+      :"Exact older/younger cousin terms require the relative's gender and age order. Usage also varies by dialect and family.")
+    :(language==="zh"
+      ?"此组合目前没有足够规则支持准确称呼。请检查每一步是否相对于上一位成员；也可使用下方称呼参考表查找直接称呼。"
+      :"There is not enough rule coverage to determine this term reliably. Check that every step is relative to the previous person.");
   document.getElementById("kinResult").style.display="block";
 }
 function renderKinReference(){
   const q=(document.getElementById("kinReferenceSearch").value||"").toLowerCase();
-  const rows=relationGroups.flatMap(g=>g.items.map(x=>[g.name,x[0],x[1]]))
-    .filter(x=>x.join(" ").toLowerCase().includes(q));
+  const rows=kinReferenceData.filter(x=>x.join(" ").toLowerCase().includes(q));
   document.getElementById("kinReference").innerHTML=rows.map(x=>`
-    <div class="reference-row"><span>${x[0]} · ${language==="zh"?x[1]:x[2]}</span><strong>${language==="zh"?x[1]:x[2]}</strong></div>`).join("");
+    <div class="reference-row"><span>${escapeHTML(x[0])} · ${escapeHTML(language==="zh"?x[2]:x[1])}</span>
+    <strong>${escapeHTML(language==="zh"?x[1]:x[2])}</strong></div>`).join("") ||
+    `<p class="form-hint">${language==="zh"?"没有找到相关称呼。":"No matching terms."}</p>`;
 }
 
 /* ---------- Family tree ---------- */
-let family=JSON.parse(localStorage.getItem("fh_family")||"[]");
+let family=[];
+try{
+  const stored=JSON.parse(localStorage.getItem("fh_family")||"[]");
+  family=Array.isArray(stored)?stored:[];
+}catch(e){family=[]}
 let editingId=null;
 function saveFamilyData(){localStorage.setItem("fh_family",JSON.stringify(family))}
 function newMember(){
@@ -736,11 +839,19 @@ function newMember(){
 }
 function populateParents(){
   ["memberFather","memberMother","memberSpouse"].forEach(id=>{
-    const s=document.getElementById(id),old=s.value;
-    s.innerHTML=`<option value="">${language==="zh"?"无／未填写":"None / Unknown"}</option>`+
-      family.filter(m=>m.id!==editingId).map(m=>`<option value="${m.id}">${escapeHTML(m.name)}</option>`).join("");
-    if(family.some(m=>m.id===old))s.value=old;
+    const select=document.getElementById(id),old=select.value;
+    select.innerHTML=`<option value="">${language==="zh"?"无／未填写":"None / Unknown"}</option>`+
+      family.filter(m=>m.id!==editingId).map(m=>`<option value="${escapeHTML(m.id)}">${escapeHTML(m.name)}</option>`).join("");
+    if(family.some(m=>m.id===old))select.value=old;
   });
+}
+function isAncestor(candidateId, memberId, seen=new Set()){
+  if(!candidateId)return false;
+  if(candidateId===memberId)return true;
+  if(seen.has(candidateId))return false;
+  seen.add(candidateId);
+  const candidate=family.find(x=>x.id===candidateId);
+  return !!candidate && (isAncestor(candidate.father,memberId,seen)||isAncestor(candidate.mother,memberId,seen));
 }
 function saveMember(){
   const name=document.getElementById("memberName").value.trim();
@@ -748,11 +859,44 @@ function saveMember(){
   const father=document.getElementById("memberFather").value;
   const mother=document.getElementById("memberMother").value;
   const spouse=document.getElementById("memberSpouse").value;
-  if(father&&father===mother){alert("父亲和母亲不能是同一人。");return}
-  if(father===editingId||mother===editingId){alert("不能将自己设为自己的父母。");return}
-  const data={name,gender:document.getElementById("memberGender").value,birth:document.getElementById("memberBirth").value,father,mother,spouse,notes:document.getElementById("memberNotes").value.trim()};
-  if(editingId){Object.assign(family.find(m=>m.id===editingId),data)}
-  else family.push({id:crypto.randomUUID(),...data});
+  const gender=document.getElementById("memberGender").value;
+  if(father&&father===mother){alert(language==="zh"?"父亲和母亲不能是同一人。":"Father and mother cannot be the same person.");return}
+  if(father===editingId||mother===editingId){alert(language==="zh"?"不能将自己设为自己的父母。":"A person cannot be their own parent.");return}
+  if(father&&family.find(x=>x.id===father)?.gender==="female"){alert(language==="zh"?"父亲资料选择为女性，请核对。":"The selected father is recorded as female.");return}
+  if(mother&&family.find(x=>x.id===mother)?.gender==="male"){alert(language==="zh"?"母亲资料选择为男性，请核对。":"The selected mother is recorded as male.");return}
+  if(editingId && (isAncestor(father,editingId)||isAncestor(mother,editingId))){
+    alert(language==="zh"?"不能把自己的后代设为父母，这会形成家族关系循环。":"A descendant cannot be assigned as a parent; this would create a cycle.");return;
+  }
+  if(spouse && (spouse===father||spouse===mother)){
+    alert(language==="zh"?"配偶不能同时是父亲或母亲栏位中的同一成员。":"The spouse cannot also be selected as this person's parent.");return;
+  }
+  const data={name,gender,birth:document.getElementById("memberBirth").value,father,mother,spouse,notes:document.getElementById("memberNotes").value.trim()};
+  let id=editingId;
+  if(editingId){
+    const current=family.find(m=>m.id===editingId);
+    if(!current)return;
+    const oldSpouse=current.spouse;
+    Object.assign(current,data);
+    if(oldSpouse && oldSpouse!==spouse){
+      const old=family.find(m=>m.id===oldSpouse);
+      if(old&&old.spouse===editingId)old.spouse="";
+    }
+  }else{
+    id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2));
+    family.push({id,...data});
+  }
+  // Keep spouse links reciprocal.
+  family.forEach(m=>{if(m.id!==id && m.spouse===id)m.spouse="";});
+  if(spouse){
+    const partner=family.find(m=>m.id===spouse);
+    if(partner){
+      if(partner.spouse && partner.spouse!==id){
+        const previous=family.find(m=>m.id===partner.spouse);
+        if(previous&&previous.spouse===spouse)previous.spouse="";
+      }
+      partner.spouse=id;
+    }
+  }
   saveFamilyData();cancelMember();renderTree();
 }
 function cancelMember(){document.getElementById("memberForm").style.display="none"}
@@ -761,7 +905,7 @@ function editMember(id){
   editingId=id;
   document.getElementById("memberFormTitle").textContent=language==="zh"?"编辑家庭成员":"Edit Family Member";
   document.getElementById("memberName").value=m.name;
-  document.getElementById("memberGender").value=m.gender;
+  document.getElementById("memberGender").value=m.gender||"other";
   document.getElementById("memberBirth").value=m.birth||"";
   document.getElementById("memberNotes").value=m.notes||"";
   populateParents();
@@ -774,33 +918,37 @@ function editMember(id){
 }
 function deleteMember(id){
   const m=family.find(x=>x.id===id);if(!m)return;
-  if(!confirm(language==="zh"?`确定删除 ${m.name}？`:`Delete ${m.name}?`))return;
+  if(!confirm(language==="zh"?`确定删除 ${m.name}？相关成员的关联资料也会解除。`:`Delete ${m.name}? Related links will be cleared.`))return;
   family=family.filter(x=>x.id!==id);
   family.forEach(x=>{if(x.father===id)x.father="";if(x.mother===id)x.mother="";if(x.spouse===id)x.spouse=""});
   saveFamilyData();renderTree();document.getElementById("memberDetail").style.display="none";
 }
 function showMember(id){
   const m=family.find(x=>x.id===id);if(!m)return;
-  const nameOf=id=>family.find(x=>x.id===id)?.name||"—";
+  const nameOf=id=>family.find(x=>x.id===id)?.name||(language==="zh"?"未填写":"Not specified");
+  const labels=language==="zh"
+    ?{father:"父亲",mother:"母亲",spouse:"配偶",birth:"出生日期",notes:"备注",none:"未填写"}
+    :{father:"Father",mother:"Mother",spouse:"Spouse",birth:"Birth date",notes:"Notes",none:"Not specified"};
   document.getElementById("memberDetailContent").innerHTML=`
     <h2>${escapeHTML(m.name)}</h2>
-    <p class="subtitle">${m.birth||"—"}</p>
+    <p class="subtitle">${labels.birth}：${escapeHTML(m.birth||labels.none)}</p>
     <div style="font-size:13px;line-height:2.1">
-      父亲：${escapeHTML(nameOf(m.father))}<br>
-      母亲：${escapeHTML(nameOf(m.mother))}<br>
-      配偶：${escapeHTML(nameOf(m.spouse))}<br>
-      备注：${escapeHTML(m.notes||"无")}
+      ${labels.father}：${escapeHTML(nameOf(m.father))}<br>
+      ${labels.mother}：${escapeHTML(nameOf(m.mother))}<br>
+      ${labels.spouse}：${escapeHTML(nameOf(m.spouse))}<br>
+      ${labels.notes}：${escapeHTML(m.notes||labels.none)}
     </div>
     <div class="actions">
-      <button class="primary-btn" onclick="editMember('${m.id}')">编辑资料</button>
-      <button class="danger-btn" onclick="deleteMember('${m.id}')">删除成员</button>
+      <button class="primary-btn" onclick="editMember('${m.id}')">${language==="zh"?"编辑资料":"Edit profile"}</button>
+      <button class="danger-btn" onclick="deleteMember('${m.id}')">${language==="zh"?"删除成员":"Delete member"}</button>
     </div>`;
   document.getElementById("memberDetail").style.display="block";
 }
-function generationOf(m,seen=new Set()){
-  if(seen.has(m.id))return 0;seen.add(m.id);
+function generationOf(m,trail=new Set()){
+  if(!m||trail.has(m.id))return 0;
+  const next=new Set(trail);next.add(m.id);
   const parents=[m.father,m.mother].map(id=>family.find(x=>x.id===id)).filter(Boolean);
-  return parents.length?1+Math.max(...parents.map(p=>generationOf(p,seen))):0;
+  return parents.length?1+Math.max(...parents.map(p=>generationOf(p,next))):0;
 }
 function renderTree(){
   document.getElementById("memberCount").textContent=family.length;
@@ -810,12 +958,31 @@ function renderTree(){
     return;
   }
   const groups=new Map();
-  family.forEach(m=>{const g=generationOf(m);if(!groups.has(g))groups.set(g,[]);groups.get(g).push(m)});
+  family.forEach(m=>{
+    const g=generationOf(m);
+    if(!groups.has(g))groups.set(g,[]);
+    groups.get(g).push(m);
+  });
   board.innerHTML=[...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([g,members])=>`
-    <div class="generation"><div class="generation-title">${language==="zh"?"第 "+(g+1)+" 世代":"Generation "+(g+1)}</div>
-    ${members.map(m=>`<div class="person"><div class="avatar">${m.gender==="male"?"♂":m.gender==="female"?"♀":"•"}</div><strong>${escapeHTML(m.name)}</strong><small>${m.birth||"—"}</small><button onclick="showMember('${m.id}')">${language==="zh"?"查看资料":"View details"}</button></div>`).join("")}
+    <div class="generation">
+      <div class="generation-title">${language==="zh"?"第 "+(g+1)+" 世代":"Generation "+(g+1)} · ${members.length}</div>
+      ${members.map(m=>{
+        const spouse=family.find(x=>x.id===m.spouse);
+        const genderMark=m.gender==="male"?"♂":m.gender==="female"?"♀":"•";
+        return `<div class="person">
+          <div class="avatar">${genderMark}</div>
+          <strong>${escapeHTML(m.name)}</strong>
+          <small>${escapeHTML(m.birth||"—")}</small>
+          <div class="relation-meta">${spouse?(language==="zh"?"配偶："+escapeHTML(spouse.name):"Spouse: "+escapeHTML(spouse.name)):""}</div>
+          <div class="person-actions">
+            <button onclick="showMember('${m.id}')">${language==="zh"?"查看资料":"View"}</button>
+            <button onclick="editMember('${m.id}')">${language==="zh"?"编辑":"Edit"}</button>
+          </div>
+        </div>`;
+      }).join("")}
     </div>`).join("");
 }
+
 function exportFamily(){
   const blob=new Blob([JSON.stringify(family,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -831,6 +998,10 @@ function importFamily(event){
       if(!confirm(language==="zh"?"导入将替换当前家庭树，确定继续？":"Import will replace the current family tree. Continue?"))return;
       const ids=new Set(data.map(m=>m.id));
       family=data.map(m=>({id:m.id,name:m.name,gender:m.gender||"other",birth:m.birth||"",father:ids.has(m.father)?m.father:"",mother:ids.has(m.mother)?m.mother:"",spouse:ids.has(m.spouse)?m.spouse:"",notes:m.notes||""}));
+      family.forEach(m=>{
+        const partner=family.find(x=>x.id===m.spouse);
+        if(partner && !partner.spouse)partner.spouse=m.id;
+      });
       saveFamilyData();renderTree();
       alert(language==="zh"?"导入成功。":"Import successful.");
     }catch(e){alert(language==="zh"?"文件格式不正确。":"Invalid backup file.")}
